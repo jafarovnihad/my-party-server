@@ -64,4 +64,26 @@ io.on('connection', (socket) => {
     // --- Chat System ---
     socket.on('send_message', (data) => {
         if (socket.currentRoom) {
-            io.in(socket.currentRoom).emit('receive_message', data
+            io.in(socket.currentRoom).emit('receive_message', data);
+        }
+    });
+
+    // --- Disconnect Handler ---
+    socket.on('disconnect', () => {
+        if (socket.currentRoom && socket.userName) {
+            console.log(`[LEAVE] ${socket.userName}`);
+            
+            io.in(socket.currentRoom).emit('receive_message', { 
+                text: `${socket.userName} disconnected`, 
+                isSystem: true 
+            });
+
+            updateRoomCount(socket.currentRoom);
+        }
+    });
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`Server live on port ${PORT}`);
+});
