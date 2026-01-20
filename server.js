@@ -28,7 +28,6 @@ io.on('connection', (socket) => {
 
         console.log(`[JOIN] ${user} entered room: ${room}`);
 
-        // Broadcast to everyone in the room that a new user joined
         io.in(room).emit('receive_message', { 
             text: `${user} joined the room`, 
             isSystem: true 
@@ -39,7 +38,6 @@ io.on('connection', (socket) => {
     socket.on('video_event', (data) => {
         if (socket.currentRoom) {
             console.log(`[SYNC] ${data.user} ${data.type} at ${data.time} in ${socket.currentRoom}`);
-            // Send to everyone except the person who triggered the event
             socket.to(socket.currentRoom).emit('sync_video', data);
         }
     });
@@ -47,8 +45,9 @@ io.on('connection', (socket) => {
     // --- 3. URL SYNC (Next Episode) ---
     socket.on('change_url', (data) => {
         if (socket.currentRoom) {
-            console.log(`https://www.change.org/ ${data.user} moved to next episode in ${socket.currentRoom}`);
-            // Send the new URL to everyone else in the room
+            // UPDATED: Now logs the specific URL of the episode
+            console.log(`https://www.change.org/ Room: ${socket.currentRoom} | User: ${data.user} | New Episode: ${data.url}`);
+            
             socket.to(socket.currentRoom).emit('navigate_to', {
                 url: data.url,
                 user: data.user
@@ -60,7 +59,6 @@ io.on('connection', (socket) => {
     socket.on('send_message', (data) => {
         if (socket.currentRoom) {
             console.log(`[CHAT] ${socket.currentRoom} | ${data.user}: ${data.text}`);
-            // Broadcast the chat message to everyone
             io.in(socket.currentRoom).emit('receive_message', data);
         }
     });
@@ -69,7 +67,6 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         if (socket.currentRoom && socket.userName) {
             console.log(`[LEAVE] ${socket.userName} disconnected`);
-            // Notify the room that the user left
             io.in(socket.currentRoom).emit('receive_message', { 
                 text: `${socket.userName} disconnected`, 
                 isSystem: true 
@@ -78,7 +75,6 @@ io.on('connection', (socket) => {
     });
 });
 
-// Use Render's assigned port or default to 3000
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Watch Party Server is live on port ${PORT}`);
