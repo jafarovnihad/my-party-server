@@ -5,19 +5,21 @@ const { Server } = require('socket.io');
 const app = express();
 const server = http.createServer(app);
 
-// Enable CORS so the extension can talk to the server
+// Enable CORS so the extension can talk to your Render server
 const io = new Server(server, {
     cors: {
         origin: "*",
         methods: ["GET", "POST"]
-    }
+    },
+    // Heartbeat settings to help keep the connection alive on free hosting
+    pingTimeout: 60000,
+    pingInterval: 25000
 });
 
 io.on('connection', (socket) => {
-    // 1. LOG: A connection is established
-    console.log(`[CONNECT] New device connected: ${socket.id}`);
+    console.log(`[CONNECT] New device: ${socket.id}`);
 
-    // 2. JOIN: Handle room joining
+    // --- JOIN ROOM ---
     socket.on('join', (data) => {
         const { room, user } = data;
         
@@ -25,45 +27,51 @@ io.on('connection', (socket) => {
         socket.currentRoom = room;
         socket.userName = user;
 
-        // LOG: View in Render dashboard
-        console.log(`[JOIN] ${user} entered room: ${room}`);
+        console.log(`[JOIN] ${user} joined room: ${room}`);
 
-        // Notify others in the room
-        io.in(room).emit('user_joined', user);
+        // Notify everyone in the room (including the sender)
+        io.in(room).emit('receive_message', { 
+            text: `${user} joined the room`, 
+            isSystem: true 
+        });
     });
 
-    // 3. CHAT: Handle incoming messages
-    socket.on('send_message', (data) => {
-        if (socket.currentRoom) {
-            // LOG: Monitor the chat content
-            console.log(`[CHAT] ${socket.currentRoom} | ${data.user}: ${data.text}`);
-            
-            // Broadcast message to the entire room
-            io.in(socket.currentRoom).emit('receive_message', data);
-        }
-    });
-
-    // 4. SYNC: Handle video events (play, pause, seek)
+    // --- VIDEO SYNC ---
     socket.on('video_event', (data) => {
         if (socket.currentRoom) {
-            // LOG: Monitor sync actions (e.g., "Guest paused at 00:05:12")
             console.log(`[SYNC] ${data.user} ${data.type} at ${data.time} in ${socket.currentRoom}`);
             
-            // Send to everyone in the room except the sender
+            // Broadcast the sync event to everyone EXCEPT the sender
             socket.to(socket.currentRoom).emit('sync_video', data);
         }
     });
 
-    // 5. DISCONNECT: Handle user leaving
+    // --- CHAT MESSAGES ---
+    socket.on('send_message', (data) => {
+        if (socket.currentRoom) {
+            console.log(`[CHAT] ${socket.currentRoom} | ${data.user}: ${data.text}`);
+            
+            // Send message to everyone in the room
+            io.in(socket.currentRoom).emit('receive_message', data);
+        }
+    });
+
+    // --- DISCONNECT ---
     socket.on('disconnect', () => {
-        const user = socket.userName || "Unknown user";
-        const room = socket.currentRoom || "no room";
-        console.log(`[LEAVE] ${user} left ${room}`);
+        if (socket.currentRoom && socket.userName) {
+            console.log(`[LEAVE] ${socket.userName} disconnected`);
+            
+            // Notify friends that this user left
+            io.in(socket.currentRoom).emit('receive_message', { 
+                text: `${socket.userName} disconnected`, 
+                isSystem: true 
+            });
+        }
     });
 });
 
-// Use Render's assigned port or default to 3000
+// Use Render's dynamic port
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`Server is live on port ${PORT}`);
+    console.log(`Watch Party Server is live on port ${PORT}`);
 });
