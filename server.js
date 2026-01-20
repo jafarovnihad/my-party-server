@@ -9,7 +9,7 @@ const io = new Server(server, {
     cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
-// --- Room Stats & Double-Count Fix ---
+// --- Room Stats ---
 function updateRoomStats(room) {
     if (!room) return;
     const sockets = io.sockets.adapter.rooms.get(room);
@@ -30,7 +30,7 @@ io.on('connection', (socket) => {
         socket.join(data.room);
         socket.currentRoom = data.room;
         socket.userName = data.user;
-        console.log(`[JOIN] ${data.user} joined ${data.room}`);
+        console.log(`[JOIN] ${data.user} -> ${data.room}`);
         updateRoomStats(data.room);
     });
 
@@ -39,10 +39,10 @@ io.on('connection', (socket) => {
         if (socket.currentRoom) socket.to(socket.currentRoom).emit('sync_video', data);
     });
 
-    // --- URL Change (Render Logs) ---
+    // --- URL Change ---
     socket.on('change_url', (data) => {
         if (socket.currentRoom) {
-            console.log(`https://www.change.org/ ${socket.currentRoom} | ${data.user} | ${data.url}`);
+            console.log(`[CHANGE] ${socket.currentRoom} | ${data.user} | ${data.url}`);
             socket.to(socket.currentRoom).emit('navigate_to', { url: data.url, user: data.user });
         }
     });
@@ -58,7 +58,7 @@ io.on('connection', (socket) => {
     // --- Disconnect ---
     socket.on('disconnect', () => {
         if (socket.currentRoom) {
-            console.log(`[LEAVE] ${socket.userName} left`);
+            console.log(`[LEAVE] ${socket.userName}`);
             updateRoomStats(socket.currentRoom);
         }
     });
