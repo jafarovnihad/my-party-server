@@ -28,9 +28,14 @@ io.on('connection', (socket) => {
         socket.join(data.room);
         socket.currentRoom = data.room;
         socket.userName = data.user;
-        socket.hasJoined = true;
-        console.log(`[JOIN] ${data.user} -> ${data.room}`);
-        updateRoomStats(data.room);
+        
+        if (data.activate) {
+            socket.hasJoined = true;
+            console.log(`[JOIN ACTIVATED] ${data.user} -> ${data.room}`);
+            updateRoomStats(data.room);
+        } else {
+            console.log(`[JOIN] ${data.user} -> ${data.room}`);
+        }
     });
     
     socket.on('video_event', (data) => {
