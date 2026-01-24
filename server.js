@@ -25,16 +25,17 @@ io.on('connection', (socket) => {
     socket.hasJoined = false;
     
     socket.on('join', (data) => {
-        socket.join(data.room);
-        socket.currentRoom = data.room;
-        socket.userName = data.user;
+        if (!socket.currentRoom) {
+            socket.join(data.room);
+            socket.currentRoom = data.room;
+            socket.userName = data.user;
+            console.log(`[JOIN] ${data.user} -> ${data.room}`);
+        }
         
         if (data.activate) {
             socket.hasJoined = true;
-            console.log(`[JOIN ACTIVATED] ${data.user} -> ${data.room}`);
-            updateRoomStats(data.room);
-        } else {
-            console.log(`[JOIN] ${data.user} -> ${data.room}`);
+            console.log(`[ACTIVATED] ${data.user} in ${data.room}`);
+            updateRoomStats(socket.currentRoom);
         }
     });
     
