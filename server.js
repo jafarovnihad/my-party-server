@@ -46,6 +46,18 @@ io.on('connection', (socket) => {
         }
     });
     
+    socket.on('request_sync', (data) => {
+        console.log(`[REQUEST_SYNC] ${socket.userName} in ${data.room}`);
+        // Ask other users in the room to provide their current state
+        socket.to(socket.currentRoom).emit('provide_sync', { requester: socket.id });
+    });
+    
+    socket.on('sync_response', (data) => {
+        console.log(`[SYNC_RESPONSE] ${socket.userName} sending state`);
+        // Send the video state to the requester
+        io.to(data.requesterId).emit('sync_video', data.state);
+    });
+    
     socket.on('change_url', (data) => {
         console.log(`[CHANGE] ${socket.currentRoom || 'none'} | ${data.user} | ${data.url}`);
         if (socket.hasJoined && socket.currentRoom) {
