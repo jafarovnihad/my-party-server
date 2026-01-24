@@ -1,12 +1,15 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+
 const app = express();
 const server = http.createServer(app);
+
 const io = new Server(server, {
     cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
+// --- Room Stats ---
 function updateRoomStats(room) {
     if (!room) return;
     const sockets = io.sockets.adapter.rooms.get(room);
@@ -14,7 +17,7 @@ function updateRoomStats(room) {
     if (sockets) {
         sockets.forEach(id => {
             const s = io.sockets.sockets.get(id);
-            if (s && s.userName && s.hasJoined) uniqueNames.add(s.userName);
+            if (s && s.userName) uniqueNames.add(s.userName);
         });
     }
     const userList = Array.from(uniqueNames);
@@ -22,44 +25,41 @@ function updateRoomStats(room) {
 }
 
 io.on('connection', (socket) => {
-    socket.hasJoined = false;
-    
+    // --- Room Entry ---
     socket.on('join', (data) => {
         socket.join(data.room);
         socket.currentRoom = data.room;
         socket.userName = data.user;
         console.log(`[JOIN] ${data.user} -> ${data.room}`);
-        socket.hasJoined = true;
         updateRoomStats(data.room);
     });
-    
+
+    // --- Sync Logic ---
     socket.on('video_event', (data) => {
-        console.log(`[VIDEO] ${socket.userName || 'anon'} | ${data.type}`);
-        if (socket.hasJoined && socket.currentRoom) {
-            socket.to(socket.currentRoom).emit('sync_video', data);
-        }
+        if (socket.currentRoom) socket.to(socket.currentRoom).emit('sync_video', data);
     });
-    
+
+    // --- URL Change ---
     socket.on('change_url', (data) => {
-        console.log(`[CHANGE] ${socket.currentRoom || 'none'} | ${data.user} | ${data.url}`);
-        if (socket.hasJoined && socket.currentRoom) {
+        if (socket.currentRoom) {
+            console.log(`[CHANGE] ${socket.currentRoom} | ${data.user} | ${data.url}`);
             socket.to(socket.currentRoom).emit('navigate_to', { url: data.url, user: data.user });
         }
     });
-    
+
+    // --- Chat System ---
     socket.on('send_message', (data) => {
-        console.log(`[CHAT] ${socket.currentRoom || 'none'} | ${data.user}: ${data.text}`);
-        if (socket.hasJoined && socket.currentRoom) {
+        if (socket.currentRoom) {
+            console.log(`[CHAT] ${socket.currentRoom} | ${data.user}: ${data.text}`);
             io.in(socket.currentRoom).emit('receive_message', data);
         }
     });
-    
+
+    // --- Disconnect ---
     socket.on('disconnect', () => {
         if (socket.currentRoom) {
-            console.log(`[LEAVE] ${socket.userName || 'anon'}`);
-            if (socket.hasJoined) {
-                updateRoomStats(socket.currentRoom);
-            }
+            console.log(`[LEAVE] ${socket.userName}`);
+            updateRoomStats(socket.currentRoom);
         }
     });
 });
