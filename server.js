@@ -45,6 +45,13 @@ io.on('connection', (socket) => {
             socket.to(socket.currentRoom).emit('sync_video', data);
         }
     });
+
+    socket.on('emoji_reaction', (data) => {
+        console.log(`[EMOJI] ${socket.userName || 'anon'} | ${data.emoji}`);
+        if (socket.hasJoined && socket.currentRoom) {
+            socket.to(socket.currentRoom).emit('emoji_reaction', data);
+        }
+    });
     
     socket.on('request_sync', (data) => {
         console.log(`[REQUEST_SYNC] ${socket.userName} in ${data.room}`);
